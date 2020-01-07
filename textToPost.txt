@@ -1,0 +1,15 @@
+// New book
+{
+	"id": 6,
+	"title": "C++ is old",
+	"author": "Old Mr C++",
+	"year": "2014"
+}
+
+// Update book
+{
+	"id":3,
+	"title":"Golang routers begin",
+	"author":"Mrs. Gorouter",
+	"year":"2012"
+	}
