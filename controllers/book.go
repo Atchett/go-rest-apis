@@ -47,19 +47,20 @@ func (c Controller) BookByID(db *sql.DB) http.HandlerFunc {
 
 		// get Id from params
 		params := mux.Vars(r)
-		id, err := strconv.Atoi(params["id"])
-		if err != nil {
-			error.Message = "Server error"
-			utils.SendError(w, http.StatusInternalServerError, error)
-		}
+		id, _ := strconv.Atoi(params["id"])
 
-		// get row by ID from db
-		row := db.QueryRow("select * from books where id=$1", id)
-		err = row.Scan(&book.ID, &book.Title, &book.Author, &book.Year)
+		bookRepo := bookrepository.BookRepository{}
+		book, err := bookRepo.BookByID(db, book, id)
 
 		if err != nil {
+			if err == sql.ErrNoRows {
+				error.Message = "Not found"
+				utils.SendError(w, http.StatusNotFound, error)
+				return
+			}
 			error.Message = "Server error"
 			utils.SendError(w, http.StatusInternalServerError, error)
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -75,13 +76,23 @@ func (c Controller) BookAdd(db *sql.DB) http.HandlerFunc {
 		var bookID int
 		var error models.Error
 
+		// decode body into the book
 		json.NewDecoder(r.Body).Decode(&book)
 
-		err := db.QueryRow("insert into books (title, author, year) values($1, $2, $3) RETURNING id;", book.Title, book.Author, book.Year).Scan(&bookID)
+		// check book has the right values
+		if book.Title == "" || book.Author == "" || book.Year == "" {
+			error.Message = "Enter missing fields"
+			utils.SendError(w, http.StatusBadRequest, error)
+			return
+		}
+
+		bookRepo := bookrepository.BookRepository{}
+		bookID, err := bookRepo.BookAdd(db, book)
 
 		if err != nil {
-			error.Message = "Server error"
+			error.Message = "Server Error"
 			utils.SendError(w, http.StatusInternalServerError, error)
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -98,18 +109,20 @@ func (c Controller) BookUpdate(db *sql.DB) http.HandlerFunc {
 
 		json.NewDecoder(r.Body).Decode(&book)
 
-		result, err := db.Exec("update books set title=$1, author=$2, year=$3 where id=$4 RETURNING id", &book.Title, &book.Author, &book.Year, &book.ID)
-
-		if err != nil {
-			error.Message = "Server error"
-			utils.SendError(w, http.StatusInternalServerError, error)
+		// check book has the right values
+		if book.ID == 0 || book.Title == "" || book.Author == "" || book.Year == "" {
+			error.Message = "All fields are required"
+			utils.SendError(w, http.StatusBadRequest, error)
+			return
 		}
 
-		rowsUpdated, err := result.RowsAffected()
+		bookRepo := bookrepository.BookRepository{}
+		rowsUpdated, err := bookRepo.BookUpdate(db, book)
 
 		if err != nil {
 			error.Message = "Server error"
 			utils.SendError(w, http.StatusInternalServerError, error)
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -121,25 +134,24 @@ func (c Controller) BookUpdate(db *sql.DB) http.HandlerFunc {
 // BookRemove - update a book
 func (c Controller) BookRemove(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		var error models.Error
-
 		params := mux.Vars(r)
-		id, err := strconv.Atoi(params["id"])
+		id, _ := strconv.Atoi(params["id"])
+
+		bookRepo := bookrepository.BookRepository{}
+
+		rowsDeleted, err := bookRepo.BookDelete(db, id)
 		if err != nil {
 			error.Message = "Server error"
 			utils.SendError(w, http.StatusInternalServerError, error)
+			return
 		}
 
-		result, err := db.Exec("delete from books where id = $1", id)
-		if err != nil {
-			error.Message = "Server error"
-			utils.SendError(w, http.StatusInternalServerError, error)
-		}
-
-		rowsDeleted, err := result.RowsAffected()
-		if err != nil {
-			error.Message = "Server error"
-			utils.SendError(w, http.StatusInternalServerError, error)
+		if rowsDeleted == 0 {
+			error.Message = "Not found"
+			utils.SendError(w, http.StatusNotFound, error)
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
