@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -53,6 +54,7 @@ func main() {
 	r.HandleFunc("/books", bookUpdate).Methods("PUT")
 	r.HandleFunc("/books/{id}", bookRemove).Methods("DELETE")
 
+	fmt.Println("Server is running on port 8000")
 	log.Fatal(http.ListenAndServe(":8000", r))
 }
 
