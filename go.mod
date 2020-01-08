@@ -1,4 +1,4 @@
-module books-list
+module go-rest-apis
 
 go 1.13
 
