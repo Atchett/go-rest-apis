@@ -1,28 +1,19 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 
+	"github.com/atchett/go-rest-apis/models"
+	"github.com/atchett/go-rest-apis/driver"
 	"github.com/gorilla/mux"
-	"github.com/lib/pq"
 	"github.com/subosito/gotenv"
 )
 
-// Book - the model of the data
-type Book struct {
-	ID     int    `json:"id"`
-	Title  string `json:"title"`
-	Author string `json:"author"`
-	Year   string `json:"year"`
-}
-
-var books []Book
+var books []models.Book
 var db *sql.DB
 
 func init() {
@@ -36,15 +27,7 @@ func logFatal(err error) {
 }
 
 func main() {
-
-	pgURL, err := pq.ParseURL(os.Getenv("LOCAL_SQL_URL"))
-	logFatal(err)
-
-	db, err = sql.Open("postgres", pgURL)
-	logFatal(err)
-
-	err = db.Ping()
-	logFatal(err)
+	db = driver.ConnectDB()
 
 	r := mux.NewRouter()
 
@@ -59,8 +42,8 @@ func main() {
 }
 
 func booksAll(w http.ResponseWriter, r *http.Request) {
-	var book Book
-	books = []Book{}
+	var book models.Book
+	books = []models.Book{}
 
 	rows, err := db.Query("SELECT * FROM books")
 	logFatal(err)
@@ -79,7 +62,7 @@ func booksAll(w http.ResponseWriter, r *http.Request) {
 
 func bookByID(w http.ResponseWriter, r *http.Request) {
 
-	var book Book
+	var book models.Book
 
 	// get Id from params
 	params := mux.Vars(r)
@@ -96,7 +79,7 @@ func bookByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func bookAdd(w http.ResponseWriter, r *http.Request) {
-	var book Book
+	var book models.Book
 	var bookID int
 
 	json.NewDecoder(r.Body).Decode(&book)
@@ -110,7 +93,7 @@ func bookAdd(w http.ResponseWriter, r *http.Request) {
 }
 
 func bookUpdate(w http.ResponseWriter, r *http.Request) {
-	var book Book
+	var book models.Book
 	json.NewDecoder(r.Body).Decode(&book)
 
 	result, err := db.Exec("update books set title=$1, author=$2, year=$3 where id=$4 RETURNING id", &book.Title, &book.Author, &book.Year, &book.ID)
