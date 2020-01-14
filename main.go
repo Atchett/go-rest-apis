@@ -14,11 +14,11 @@ import (
 )
 
 var books []models.Book
-var db *sql.DB
 
-func init() {
-	gotenv.Load()
-}
+var (
+	db *sql.DB
+	_  = gotenv.Load()
+)
 
 func logFatal(err error) {
 	if err != nil {
